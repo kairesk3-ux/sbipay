@@ -1,0 +1,13 @@
+{
+  "name": "sbipay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SBI PAY static web application",
+  "scripts": {
+    "build": "node -e \"require('fs').accessSync('index.html'); console.log('Static site build complete')\"",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
