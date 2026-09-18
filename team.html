@@ -21,7 +21,7 @@
 </main>
 <script>
 const profile=JSON.parse(localStorage.getItem('sbiPayProfile')||'null');
-const userId=profile?.id||localStorage.getItem('sbiPayUserId')||String(Math.floor(100000+Math.random()*899999));
+const userId=profile?.id||localStorage.getItem('sbiPayUserId')||'284041';
 localStorage.setItem('sbiPayUserId',userId);
 const code=localStorage.getItem('sbiPayInviteCode')||`SBI${userId}`;
 localStorage.setItem('sbiPayInviteCode',code);
@@ -32,10 +32,9 @@ document.getElementById('invite-url').textContent=inviteUrl;
 document.getElementById('open-invite').href=inviteUrl;
 const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback))}catch(error){return fallback}};
 const savedMembers=readJson('sbiPayTeamMembers',[]);
-const demoMembers=[{username:'Rs********00',id:'284838',level:'B'},{username:'na**ar',id:'290683',level:'B'},{username:'An***90',id:'303478',level:'B'},{username:'Rs**ay',id:'307414',level:'B'},{username:'Ba****07',id:'303774',level:'C'},{username:'Ra**22',id:'305037',level:'C'},{username:'Ri****23',id:'305137',level:'C'},{username:'Ma******06',id:'305218',level:'C'}];
-const directMembers=savedMembers.length?savedMembers.filter(member=>member.ownerCode===code):demoMembers.filter(member=>member.level==='B');
+const directMembers=savedMembers.filter(member=>member.ownerCode===code);
 const directCodes=new Set(directMembers.map(member=>member.inviteCode).filter(Boolean));
-const indirectMembers=savedMembers.length?savedMembers.filter(member=>directCodes.has(member.ownerCode)):demoMembers.filter(member=>member.level==='C');
+const indirectMembers=savedMembers.filter(member=>directCodes.has(member.ownerCode));
 const members=[...directMembers,...indirectMembers];
 const memberMarkup=member=>`<div class="member-row compact"><div class="member-name">${member.username}</div><div class="member-meta"><span>ID: ${member.id}</span><strong>Level.${member.level}</strong></div></div>`;
 document.getElementById('member-count').textContent=`+${members.length}`;

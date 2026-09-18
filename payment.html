@@ -266,6 +266,7 @@
       <div class="packs" aria-label="Order ranges">
         <button class="pack-pill" type="button" data-range-min="10000" data-range-max="20000">10,000-20,000</button>
         <button class="pack-pill active" type="button" data-range-min="5000" data-range-max="9999">5,000-9,999</button>
+        <button class="pack-pill" type="button" data-range-min="300" data-range-max="4000">300-4,000</button>
       </div>
 
       <form class="order-search" id="order-search" role="search">
@@ -296,10 +297,16 @@
       pending: 0
     };
 
-    const packs = Array.from({length: 400}, (_, index) => {
-      const isHighRange = index < 200;
-      const rangeIndex = isHighRange ? index : index - 200;
-      const amount = isHighRange ? 10000 + rangeIndex * 50 : 5000 + rangeIndex * 25;
+    const ranges = [
+      {min: 10000, step: 50},
+      {min: 5000, step: 25},
+      {min: 300, step: 18}
+    ];
+    const packs = Array.from({length: 600}, (_, index) => {
+      const rangeIndex = Math.floor(index / 200);
+      const orderIndex = index % 200;
+      const range = ranges[rangeIndex];
+      const amount = Math.min(range.min + orderIndex * range.step, rangeIndex === 2 ? 4000 : rangeIndex === 1 ? 9999 : 20000);
       return {amount, income: Number((amount * 0.05).toFixed(2)), code: `SBI${String(index + 1).padStart(3, '0')}`};
     });
 
@@ -368,7 +375,7 @@
     setInterval(() => {
       rotationOffset += 12;
       renderFilteredPacks();
-    }, 2500);
+    }, 35000);
   </script>
 </body>
 </html>

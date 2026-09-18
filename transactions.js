@@ -22,13 +22,17 @@
     const currency=transaction.currency||transaction.type||'INR';
     return {...transaction,direction,type:transaction.type||currency,currency,amount:Number(transaction.amount||0)};
   };
+  const demoTransactionIds=new Set(seededTransactions.map(transaction=>transaction.id));
   const read=()=>{
     try{
       const stored=JSON.parse(localStorage.getItem(storageKey)||'null');
-      if(Array.isArray(stored))return stored.map(normalizeTransaction);
+      if(Array.isArray(stored)){
+        const clean=stored.filter(transaction=>!demoTransactionIds.has(transaction.id)).map(normalizeTransaction);
+        if(clean.length!==stored.length)localStorage.setItem(storageKey,JSON.stringify(clean));
+        return clean;
+      }
     }catch(error){}
-    localStorage.setItem(storageKey,JSON.stringify(seededTransactions));
-    return seededTransactions.map(normalizeTransaction);
+    return [];
   };
   const write=transactions=>localStorage.setItem(storageKey,JSON.stringify(transactions));
   const add=transaction=>{
@@ -52,7 +56,8 @@
     const records=read().filter(record=>record.currency==='INR');
     const received=records.filter(record=>record.direction==='receive'&&record.status==='success').reduce((sum,record)=>sum+record.amount,0);
     const spent=records.filter(record=>record.direction==='purchase'&&record.status==='success').reduce((sum,record)=>sum+record.amount,0);
-    const balance=Math.max(0,received-spent);
+    const startingBalance=Number(localStorage.getItem('sbiPayStartingBalance')||0);
+    const balance=Math.max(0,startingBalance+received-spent);
     return {balance,reward:balance*0.05,pending:records.filter(record=>record.status==='processing').reduce((sum,record)=>sum+record.amount,0)};
   };
   const buyerId=()=>{const key='sbiPayBuyerId';const existing=localStorage.getItem(key);if(existing)return existing;const id=`buyer-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;localStorage.setItem(key,id);return id};

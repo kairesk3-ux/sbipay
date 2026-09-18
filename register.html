@@ -7,13 +7,24 @@ const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)|
 document.getElementById('register-form').addEventListener('submit',function(event){
   event.preventDefault();
   const username=document.getElementById('username').value.trim();
-  const userId=String(Math.floor(100000+Math.random()*899999));
+  const nextUserId=Number(localStorage.getItem('sbiPayNextUserId')||284041);
+  const userId=String(nextUserId);
+  localStorage.setItem('sbiPayNextUserId',String(nextUserId+1));
   const inviteCode=`SBI${userId}`;
   const owners=readJson('sbiPayReferralOwners',{});
   const parent=owners[referral]||null;
   const profile={username,id:userId,inviteCode,ownerCode:referral};
   localStorage.setItem('sbiPayUsername',username);
   localStorage.setItem('sbiPayProfile',JSON.stringify(profile));
+  localStorage.setItem('sbiPayUserId',userId);
+  localStorage.setItem('sbiPayInviteCode',inviteCode);
+  localStorage.setItem('sbiPayStartingBalance','300');
+  localStorage.removeItem('sbiPayTransactions');
+  localStorage.removeItem('sbiPaySellerSales');
+  localStorage.removeItem('sbiPayOrderLocks');
+  localStorage.removeItem('sbiPayBuyerId');
+  localStorage.removeItem('sbiPayWalletUpi');
+  localStorage.removeItem('sbiPayWalletBanks');
   owners[inviteCode]=profile;
   localStorage.setItem('sbiPayReferralOwners',JSON.stringify(owners));
   if(parent){
