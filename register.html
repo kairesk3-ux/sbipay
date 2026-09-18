@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>SBI PAY - Register</title><link rel="stylesheet" href="style.css"></head><body class="inner-page"><header class="page-header"><a class="back" href="index.html" aria-label="Back">←</a><h1>Register</h1></header><main class="inner-content"><form class="auth-form compact" id="register-form"><label class="field"><span class="field-icon user-icon"></span><input id="username" type="text" placeholder="User Name" aria-label="User Name" required></label><label class="field"><span class="field-icon lock-icon"></span><input type="password" placeholder="Password" aria-label="Password" required></label><label class="field phone-field"><span class="field-icon phone-icon"></span><strong>+91</strong><i></i><input type="tel" placeholder="Phone" aria-label="Phone" required></label><label class="field otp-field"><span class="field-icon mail-icon"></span><input type="text" placeholder="OTP Code" aria-label="OTP Code"><button class="send-button" type="button">Send</button></label><label class="field"><span class="field-icon link-icon"></span><input id="invite-code" type="text" placeholder="Invite Code" aria-label="Invite Code"></label><button class="primary-button" type="submit">Sign Up</button></form></main><script>
+const referral=new URLSearchParams(location.search).get('ref')||'';
+const inviteInput=document.getElementById('invite-code');
+inviteInput.value=referral;
+const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback))}catch(error){return fallback}};
+document.getElementById('register-form').addEventListener('submit',function(event){
+  event.preventDefault();
+  const username=document.getElementById('username').value.trim();
+  const userId=String(Math.floor(100000+Math.random()*899999));
+  const inviteCode=`SBI${userId}`;
+  const owners=readJson('sbiPayReferralOwners',{});
+  const parent=owners[referral]||null;
+  const profile={username,id:userId,inviteCode,ownerCode:referral};
+  localStorage.setItem('sbiPayUsername',username);
+  localStorage.setItem('sbiPayProfile',JSON.stringify(profile));
+  owners[inviteCode]=profile;
+  localStorage.setItem('sbiPayReferralOwners',JSON.stringify(owners));
+  if(parent){
+    const members=readJson('sbiPayTeamMembers',[]);
+    members.push({username,id:userId,inviteCode,referral,ownerCode:referral,level:parent.ownerCode?'C':'B',activity:0,joinedAt:new Date().toISOString()});
+    localStorage.setItem('sbiPayTeamMembers',JSON.stringify(members));
+  }
+  window.location.href='dashboard.html';
+});
+</script></body></html>
