@@ -2,8 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const {MongoClient} = require('mongodb');
-require('dotenv').config();
+let MongoClient;
+try { ({MongoClient} = require('mongodb')); } catch (error) { MongoClient = null; }
+try { require('dotenv').config(); } catch (error) {}
 
 const root = __dirname;
 const port = Number(process.env.PORT) || 10000;
@@ -42,6 +43,7 @@ const readBody = request => new Promise((resolve, reject) => {
 });
 
 const getDatabase = async () => {
+  if (!MongoClient) throw new Error('MongoDB driver is not installed');
   if (!mongoUri) throw new Error('MONGODB_URI is not configured');
   if (!mongoConnection) {
     mongoClient = new MongoClient(mongoUri, {serverSelectionTimeoutMS: 5000});
