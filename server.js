@@ -73,8 +73,12 @@ const handleApi = async (request, response, pathname) => {
       const password = String(payload.password || '');
       if (!username || phone.length < 10 || password.length < 6) return json(response, 400, {error: 'Invalid registration details'});
       const users = (await getDatabase()).collection('users');
-      if (await users.findOne({phone})) return json(response, 409, {error: 'This mobile number is already registered.'});
-      await users.insertOne({username, phone, passwordHash: await hashPassword(password), userId: String(payload.userId || ''), inviteCode: String(payload.inviteCode || ''), ownerCode: String(payload.ownerCode || ''), createdAt: new Date()});
+      const bankNumbers = Array.isArray(payload.banks) ? payload.banks.map(bank => String(bank.accountNumber || '')).filter(Boolean) : [];
+      const upiIds = Array.isArray(payload.upis) ? payload.upis.map(upi => String(upi.upiId || '')).filter(Boolean) : [];
+      const duplicateQuery = {$or: [{phone}, ...bankNumbers.map(accountNumber => ({bankAccount: accountNumber})), ...upiIds.map(upiId => ({upiId}))]};
+      if (await users.findOne(duplicateQuery)) return json(response, 409, {error: 'This mobile number, bank account, or UPI is already registered.'});
+      if (payload.preflight) return json(response, 200, {ok: true});
+      await users.insertOne({username, phone, passwordHash: await hashPassword(password), userId: String(payload.userId || ''), inviteCode: String(payload.inviteCode || ''), ownerCode: String(payload.ownerCode || ''), bankAccount: bankNumbers[0] || '', upiId: upiIds[0] || '', createdAt: new Date()});
       return json(response, 201, {ok: true});
     } catch (error) { return json(response, 503, {error: 'Registration storage is temporarily unavailable.'}); }
   }

