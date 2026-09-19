@@ -1,9 +1,16 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const {MongoClient} = require('mongodb');
+require('dotenv').config();
 
 const root = __dirname;
 const port = Number(process.env.PORT) || 10000;
+const mongoUri = process.env.MONGODB_URI;
+const mongoDatabase = process.env.MONGODB_DB || 'sbipay';
+let mongoClient;
+let mongoConnection;
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.gif': 'image/gif',
@@ -17,8 +24,67 @@ const contentTypes = {
   '.webp': 'image/webp'
 };
 
+const json = (response, status, body) => {
+  response.writeHead(status, {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache'});
+  response.end(JSON.stringify(body));
+};
+
+const readBody = request => new Promise((resolve, reject) => {
+  let body = '';
+  request.on('data', chunk => {
+    body += chunk;
+    if (body.length > 1_000_000) request.destroy(new Error('Request body too large'));
+  });
+  request.on('end', () => {
+    try { resolve(JSON.parse(body || '{}')); } catch (error) { reject(error); }
+  });
+  request.on('error', reject);
+});
+
+const getDatabase = async () => {
+  if (!mongoUri) throw new Error('MONGODB_URI is not configured');
+  if (!mongoConnection) {
+    mongoClient = new MongoClient(mongoUri, {serverSelectionTimeoutMS: 5000});
+    mongoConnection = mongoClient.connect().then(() => mongoClient.db(mongoDatabase));
+  }
+  return mongoConnection;
+};
+
+const hashPassword = password => new Promise((resolve, reject) => {
+  const salt = crypto.randomBytes(16);
+  crypto.scrypt(password, salt, 64, (error, derivedKey) => {
+    if (error) return reject(error);
+    resolve(`${salt.toString('hex')}:${derivedKey.toString('hex')}`);
+  });
+});
+
+const handleApi = async (request, response, pathname) => {
+  if (request.method === 'GET' && pathname === '/api/health') {
+    try { await getDatabase(); return json(response, 200, {ok: true, database: 'connected'}); }
+    catch (error) { return json(response, 503, {ok: false, database: 'unavailable'}); }
+  }
+  if (request.method === 'POST' && pathname === '/api/register') {
+    try {
+      const payload = await readBody(request);
+      const username = String(payload.username || '').trim();
+      const phone = String(payload.phone || '').replace(/\D/g, '');
+      const password = String(payload.password || '');
+      if (!username || phone.length < 10 || password.length < 6) return json(response, 400, {error: 'Invalid registration details'});
+      const users = (await getDatabase()).collection('users');
+      if (await users.findOne({phone})) return json(response, 409, {error: 'This mobile number is already registered.'});
+      await users.insertOne({username, phone, passwordHash: await hashPassword(password), userId: String(payload.userId || ''), inviteCode: String(payload.inviteCode || ''), ownerCode: String(payload.ownerCode || ''), createdAt: new Date()});
+      return json(response, 201, {ok: true});
+    } catch (error) { return json(response, 503, {error: 'Registration storage is temporarily unavailable.'}); }
+  }
+  return false;
+};
+
 const server = http.createServer((request, response) => {
-  const requestedPath = decodeURIComponent((request.url || '/').split('?')[0]);
+  const requestedPath = decodeURIComponent(new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`).pathname);
+  if (requestedPath.startsWith('/api/')) {
+    handleApi(request, response, requestedPath).catch(() => json(response, 500, {error: 'Request failed'}));
+    return;
+  }
   const relativePath = requestedPath === '/' ? 'index.html' : requestedPath.replace(/^\/+/, '');
   const filePath = path.resolve(root, relativePath);
 
@@ -45,4 +111,9 @@ const server = http.createServer((request, response) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`SBI PAY server listening on port ${port}`);
+});
+
+process.on('SIGTERM', async () => {
+  if (mongoClient) await mongoClient.close();
+  process.exit(0);
 });
