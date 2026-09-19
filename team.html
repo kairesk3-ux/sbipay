@@ -47,7 +47,9 @@ document.getElementById('level-c-members').innerHTML=indirectMembers.map(memberM
 const activity=member=>Number(member.activity||member.deposit||0);
 const directActivity=directMembers.reduce((sum,member)=>sum+activity(member),0);
 const indirectActivity=indirectMembers.reduce((sum,member)=>sum+activity(member),0);
-const totalCommission=directActivity*0.003+indirectActivity*0.002;
+const referralCredits=readJson('sbiPayReferralCredits',[]).filter(item=>item.ownerCode===code&&item.status==='success');
+const referralCommission=referralCredits.reduce((sum,item)=>sum+Number(item.amount||0),0);
+const totalCommission=directActivity*0.003+indirectActivity*0.002+referralCommission;
 document.getElementById('total-commission').textContent=`+${totalCommission.toFixed(2)}`;
 document.getElementById('today-commission').textContent=`+${totalCommission.toFixed(2)}`;
 document.getElementById('tomorrow-commission').textContent=`+${totalCommission.toFixed(2)}`;
@@ -59,7 +61,8 @@ const refreshTeamMetrics=()=>{
 	const currentIndirect=currentMembers.filter(member=>currentCodes.has(member.ownerCode));
 	const currentDirectActivity=currentDirect.reduce((sum,member)=>sum+activity(member),0);
 	const currentIndirectActivity=currentIndirect.reduce((sum,member)=>sum+activity(member),0);
-	const currentCommission=currentDirectActivity*0.003+currentIndirectActivity*0.002;
+	const currentReferralCommission=readJson('sbiPayReferralCredits',[]).filter(item=>item.ownerCode===code&&item.status==='success').reduce((sum,item)=>sum+Number(item.amount||0),0);
+	const currentCommission=currentDirectActivity*0.003+currentIndirectActivity*0.002+currentReferralCommission;
 	document.getElementById('member-count').textContent=`+${currentDirect.length+currentIndirect.length}`;
 	document.getElementById('total-commission').textContent=`+${currentCommission.toFixed(2)}`;
 	document.getElementById('today-commission').textContent=`+${currentCommission.toFixed(2)}`;
