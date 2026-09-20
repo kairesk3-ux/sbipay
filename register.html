@@ -32,12 +32,20 @@ document.getElementById('register-form').addEventListener('submit',async functio
     const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({username,phone,password,userId:'',inviteCode:'',ownerCode:referral,banks:savedBanks,upis:savedUpis,preflight:true})});
     clearTimeout(timeout);
     if(response.status===409){error.textContent=(await response.json()).error||'These registration details are already in use.';return}
-    if(!response.ok&&response.status!==503){error.textContent='Registration could not be completed. Please try again.';return}
-  }catch(networkError){}
-  const nextUserId=Math.max(Number(localStorage.getItem('sbiPayNextUserId')||284041),284041);
-  let userId=String(nextUserId);
-  localStorage.setItem('sbiPayNextUserId',String(nextUserId+1));
-  let inviteCode=`SBI${userId}`;
+    if(!response.ok){error.textContent='Registration service is unavailable. Please try again.';return}
+  }catch(networkError){error.textContent='Registration service is unavailable. Please try again.';return}
+  let registered;
+  try{
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),5000);
+    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({username,phone,password,ownerCode:referral,banks:savedBanks,upis:savedUpis})});
+    clearTimeout(timeout);
+    if(response.status===409){error.textContent=(await response.json()).error||'These registration details are already in use.';return}
+    if(!response.ok){error.textContent='Registration could not be completed. Please try again.';return}
+    registered=await response.json();
+  }catch(networkError){error.textContent='Registration service is unavailable. Please try again.';return}
+  const userId=String(registered.userId);
+  const inviteCode=registered.inviteCode;
   const owners=readJson('sbiPayReferralOwners',{});
   const parent=owners[referral]||null;
   let profile={username,id:userId,inviteCode,ownerCode:referral,createdAt:new Date().toISOString()};
@@ -62,30 +70,6 @@ document.getElementById('register-form').addEventListener('submit',async functio
     members.push({username,id:userId,inviteCode,referral,ownerCode:referral,level:parent.ownerCode?'C':'B',activity:0,joinedAt:new Date().toISOString()});
     localStorage.setItem('sbiPayTeamMembers',JSON.stringify(members));
   }
-  try{
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),1500);
-    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({username,phone,password,userId,inviteCode,ownerCode:referral,banks:savedBanks,upis:savedUpis})});
-    clearTimeout(timeout);
-    if(response.status===409){error.textContent=(await response.json()).error||'These registration details are already in use.';return}
-    if(response.ok){
-      const registered=await response.json();
-      userId=String(registered.userId||userId);
-      inviteCode=registered.inviteCode||`SBI${userId}`;
-      profile={...profile,id:userId,inviteCode};
-      localStorage.setItem('sbiPayUsername',username);
-      localStorage.setItem('sbiPayProfile',JSON.stringify(profile));
-      localStorage.setItem('sbiPayUserId',userId);
-      localStorage.setItem('sbiPayInviteCode',inviteCode);
-      registeredPhones[phone]=userId;
-      localStorage.setItem('sbiPayRegisteredPhones',JSON.stringify(registeredPhones));
-      owners[inviteCode]=profile;
-      localStorage.setItem('sbiPayReferralOwners',JSON.stringify(owners));
-      const members=readJson('sbiPayTeamMembers',[]);
-      const currentMember=members.find(member=>member.username===username&&member.ownerCode===referral);
-      if(currentMember){currentMember.id=userId;currentMember.inviteCode=inviteCode;localStorage.setItem('sbiPayTeamMembers',JSON.stringify(members))}
-    }
-  }catch(networkError){}
   success.textContent='Registration Successful';
   document.querySelector('.primary-button').disabled=true;
   setTimeout(()=>{window.open(apkDownloadUrl,'_blank','noopener');window.location.href='dashboard.html'},900);

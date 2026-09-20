@@ -51,8 +51,9 @@ const teamSectionCount=document.createElement('p');
 teamSectionCount.className='tier-count';
 teamSectionCount.innerHTML='Total team members: <strong>0</strong>';
 teamSectionInner?.prepend(teamSectionCount);
+let serverTeamLoaded=false;
 const syncUserStats=async()=>{try{const records=window.sbiPayTransactions?.read()||[];const deposits=records.filter(record=>record.direction==='receive'&&record.status==='success').reduce((sum,record)=>sum+Number(record.amount||0),0);const activity=records.filter(record=>record.status==='success').reduce((sum,record)=>sum+Number(record.amount||0),0);await fetch('/api/user/stats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,depositTotal:deposits,activity})})}catch(error){}};
-const loadTeamFromServer=async()=>{try{const response=await fetch(`/api/team?ownerCode=${encodeURIComponent(code)}`);if(!response.ok)return;const data=await response.json();const serverDirect=data.directMembers||[];const serverIndirect=data.indirectMembers||[];document.getElementById('level-b-members').innerHTML=serverDirect.map(memberMarkup).join('');document.getElementById('level-c-members').innerHTML=serverIndirect.map(memberMarkup).join('');document.getElementById('level-b-count').textContent=serverDirect.length;document.getElementById('level-c-count').textContent=serverIndirect.length;document.getElementById('member-count').textContent=`+${serverDirect.length+serverIndirect.length}`;teamSectionCount.querySelector('strong').textContent=serverDirect.length+serverIndirect.length;document.getElementById('team-deposit').textContent=`+${Number(data.totalDeposit||0).toFixed(2)}`}catch(error){}};
+const loadTeamFromServer=async()=>{try{const response=await fetch(`/api/team?ownerCode=${encodeURIComponent(code)}`);if(!response.ok)return;const data=await response.json();serverTeamLoaded=true;const serverDirect=data.directMembers||[];const serverIndirect=data.indirectMembers||[];document.getElementById('level-b-members').innerHTML=serverDirect.map(memberMarkup).join('');document.getElementById('level-c-members').innerHTML=serverIndirect.map(memberMarkup).join('');document.getElementById('level-b-count').textContent=serverDirect.length;document.getElementById('level-c-count').textContent=serverIndirect.length;document.getElementById('member-count').textContent=`+${serverDirect.length+serverIndirect.length}`;teamSectionCount.querySelector('strong').textContent=serverDirect.length+serverIndirect.length;document.getElementById('team-deposit').textContent=`+${Number(data.totalDeposit||0).toFixed(2)}`}catch(error){}};
 syncUserStats();
 loadTeamFromServer();
 const directActivity=directMembers.reduce((sum,member)=>sum+activity(member),0);
@@ -65,6 +66,7 @@ document.getElementById('today-commission').textContent=`+${totalCommission.toFi
 document.getElementById('tomorrow-commission').textContent=`+${totalCommission.toFixed(2)}`;
 document.getElementById('team-deposit').textContent=`+${(directActivity+indirectActivity).toFixed(2)}`;
 const refreshTeamMetrics=()=>{
+	if(serverTeamLoaded)return;
 	const currentMembers=readJson('sbiPayTeamMembers',[]);
 	const currentDirect=currentMembers.filter(member=>member.ownerCode===code);
 	const currentCodes=new Set(currentDirect.map(member=>member.inviteCode).filter(Boolean));
