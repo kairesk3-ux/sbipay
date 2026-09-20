@@ -88,7 +88,8 @@ const verifyPassword = (password, storedHash) => new Promise((resolve, reject) =
   if (!saltHex || !keyHex) return resolve(false);
   crypto.scrypt(password, Buffer.from(saltHex, 'hex'), 64, (error, derivedKey) => {
     if (error) return reject(error);
-    resolve(crypto.timingSafeEqual(Buffer.from(keyHex, 'hex'), derivedKey));
+    const storedKey = Buffer.from(keyHex, 'hex');
+    resolve(storedKey.length === derivedKey.length && crypto.timingSafeEqual(storedKey, derivedKey));
   });
 });
 
