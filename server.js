@@ -64,7 +64,7 @@ const nextUserId = async database => {
     {$sort: {numericId: -1}},
     {$limit: 1}
   ]).next();
-  const minimum = Math.max(284040, Number(latestUser?.numericId || 0));
+  const minimum = Math.max(19999, Number(latestUser?.numericId || 0));
   const counters = database.collection('counters');
   await counters.updateOne({_id: 'users'}, {$max: {value: minimum}}, {upsert: true});
   const counter = await counters.findOneAndUpdate(
@@ -72,7 +72,7 @@ const nextUserId = async database => {
     {$inc: {value: 1}},
     {upsert: true, returnDocument: 'after'}
   );
-  return String(counter.value || 284041);
+  return String(counter.value || 20000);
 };
 
 const hashPassword = password => new Promise((resolve, reject) => {
@@ -83,10 +83,39 @@ const hashPassword = password => new Promise((resolve, reject) => {
   });
 });
 
+const verifyPassword = (password, storedHash) => new Promise((resolve, reject) => {
+  const [saltHex, keyHex] = String(storedHash || '').split(':');
+  if (!saltHex || !keyHex) return resolve(false);
+  crypto.scrypt(password, Buffer.from(saltHex, 'hex'), 64, (error, derivedKey) => {
+    if (error) return reject(error);
+    resolve(crypto.timingSafeEqual(Buffer.from(keyHex, 'hex'), derivedKey));
+  });
+});
+
+const publicProfile = user => ({username: user.username, id: user.userId, inviteCode: user.inviteCode, ownerCode: user.ownerCode, createdAt: user.createdAt});
+
 const handleApi = async (request, response, pathname) => {
   if (request.method === 'GET' && pathname === '/api/health') {
     try { await getDatabase(); return json(response, 200, {ok: true, database: 'connected'}); }
     catch (error) { return json(response, 503, {ok: false, database: 'unavailable'}); }
+  }
+  if (request.method === 'GET' && pathname === '/api/user') {
+    try {
+      const userId = String(new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`).searchParams.get('userId') || '').trim();
+      if (!userId) return json(response, 400, {error: 'User ID is required'});
+      const user = await (await getDatabase()).collection('users').findOne({userId});
+      return user ? json(response, 200, {user: publicProfile(user)}) : json(response, 404, {error: 'User not found'});
+    } catch (error) { return json(response, 503, {error: 'Profile is temporarily unavailable.'}); }
+  }
+  if (request.method === 'POST' && pathname === '/api/login') {
+    try {
+      const payload = await readBody(request);
+      const phone = String(payload.phone || '').replace(/\D/g, '');
+      const password = String(payload.password || '');
+      const user = await (await getDatabase()).collection('users').findOne({phone});
+      if (!user || !(await verifyPassword(password, user.passwordHash))) return json(response, 401, {error: 'Invalid phone number or password.'});
+      return json(response, 200, {user: publicProfile(user)});
+    } catch (error) { return json(response, 503, {error: 'Login service is temporarily unavailable.'}); }
   }
   if (request.method === 'GET' && pathname === '/api/team') {
     try {
@@ -133,6 +162,7 @@ const handleApi = async (request, response, pathname) => {
       const userId = await nextUserId(database);
       const inviteCode = `SBI${userId}`;
       const ownerCode = String(payload.ownerCode || '');
+      if (ownerCode && !(await users.findOne({inviteCode: ownerCode}, {projection: {_id: 1}}))) return json(response, 400, {error: 'Invalid invitation code.'});
       await users.insertOne({username, phone, passwordHash: await hashPassword(password), userId, inviteCode, ownerCode, bankAccount: bankNumbers[0] || '', upiId: upiIds[0] || '', createdAt: new Date()});
       return json(response, 201, {ok: true, userId, inviteCode, ownerCode});
     } catch (error) { return json(response, 503, {error: 'Registration storage is temporarily unavailable.'}); }

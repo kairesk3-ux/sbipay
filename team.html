@@ -22,7 +22,8 @@
 </main>
 <script>
 const profile=JSON.parse(localStorage.getItem('sbiPayProfile')||'null');
-const userId=profile?.id||localStorage.getItem('sbiPayUserId')||'284041';
+const userId=profile?.id||localStorage.getItem('sbiPayUserId')||'';
+if(!userId){window.location.href='login.html'}
 localStorage.setItem('sbiPayUserId',userId);
 const code=profile?.inviteCode||localStorage.getItem('sbiPayInviteCode')||`SBI${userId}`;
 localStorage.setItem('sbiPayInviteCode',code);

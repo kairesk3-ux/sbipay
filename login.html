@@ -5,19 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SBI PAY - Sign In</title>
 <link rel="stylesheet" href="style.css">
-<style>.brand-image{display:block;width:100%;height:auto}</style>
+<style>.brand-image{display:block;width:100%;height:auto;min-height:1px}</style>
 </head>
 <body class="login-page">
 <main class="login-shell">
-<div class="brand-mark" aria-label="SBI PAY"><img class="brand-image" src="WhatsApp.jpeg" alt="SBI PAY logo"></div>
-<form class="auth-form" action="dashboard.html">
+<div class="brand-mark" aria-label="SBI PAY"><img class="brand-image" src="/WhatsApp.jpeg?v=2" alt="SBI PAY logo" loading="eager" decoding="async" fetchpriority="high"></div>
+<form class="auth-form" id="login-form">
 <label class="field"><span class="field-icon user-icon"></span><input type="tel" placeholder="Phone" aria-label="Phone" required></label>
 <label class="field"><span class="field-icon lock-icon"></span><input type="password" placeholder="Password" aria-label="Password" required></label>
 <div class="form-row"><a href="register.html">Register</a><label class="remember"><input type="checkbox"><span></span>Remember Me</label></div>
 <label class="agreement"><input type="checkbox" checked><span></span>Agree <a href="#">"User Privacy Agreement"</a></label>
-<button class="primary-button" type="submit">Sign In</button><a class="forgot" href="reset.html">Forget Password</a>
+<div id="login-error" role="alert" style="min-height:20px;color:#d74d4d;text-align:center"></div><button class="primary-button" type="submit">Sign In</button><a class="forgot" href="reset.html">Forget Password</a>
 </form>
 <small class="version">v1.0.2</small>
 </main>
+<script>
+const loginForm=document.getElementById('login-form');
+loginForm.addEventListener('submit',async event=>{
+	event.preventDefault();
+	const phone=loginForm.querySelector('input[type="tel"]').value.replace(/\D/g,'');
+	const password=loginForm.querySelector('input[type="password"]').value;
+	const error=document.getElementById('login-error');
+	try{
+		const response=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,password})});
+		const data=await response.json();
+		if(!response.ok){error.textContent=data.error||'Unable to sign in.';return}
+		const profile=data.user;
+		localStorage.setItem('sbiPayUsername',profile.username);
+		localStorage.setItem('sbiPayProfile',JSON.stringify(profile));
+		localStorage.setItem('sbiPayUserId',profile.id);
+		localStorage.setItem('sbiPayInviteCode',profile.inviteCode);
+		window.location.href='dashboard.html';
+	}catch(networkError){error.textContent='Login service is unavailable. Please try again.'}
+});
+</script>
 </body>
 </html>
