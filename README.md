@@ -11,6 +11,8 @@ Render provides the `PORT` environment variable, which the server uses automatic
 
 ## MongoDB configuration
 
+The Render service must be deployed as a **Web Service**, not a Static Site. The included `render.yaml` configures the Node start command and `/api/health` check. Set `MONGODB_URI` in Render's environment settings, then redeploy.
+
 Set these environment variables in Render or in a local `.env` file:
 
 ```text
