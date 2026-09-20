@@ -22,7 +22,7 @@ document.getElementById('register-form').addEventListener('submit',async functio
   const registeredPhones=readJson('sbiPayRegisteredPhones',{});
   if(phone.length<10){error.textContent='Enter a valid mobile number.';return}
   if(password.length<6){error.textContent='Password must be at least 6 characters.';return}
-  if(registeredPhones[phone]){error.textContent='This mobile number is already registered.';return}
+  if(registeredPhones[phone]){error.textContent='This number is already registered.';return}
   const savedBanks=readJson('sbiPayWalletBanks',[]);
   const savedUpis=readJson('sbiPayWalletUpi',[]);
   if(savedBanks.length||savedUpis.length){error.textContent='This bank account or UPI is already registered.';return}
@@ -54,6 +54,26 @@ document.getElementById('register-form').addEventListener('submit',async functio
   localStorage.setItem('sbiPayUserId',userId);
   registeredPhones[phone]=userId;
   localStorage.setItem('sbiPayRegisteredPhones',JSON.stringify(registeredPhones));
+
+  const adminUsers=readJson('sbiPayAdminUsers',[]);
+  const memberRecord={
+    userId,
+    username,
+    phone,
+    ownerCode: referral,
+    inviteCode,
+    balance: 0,
+    depositBalance: 0,
+    walletLimit: 0,
+    isActive: true,
+    status: 'enabled',
+    upiId: '',
+    createdAt: new Date().toISOString()
+  };
+  const existingIndex=adminUsers.findIndex(item => String(item.userId)===String(userId) || String(item.phone)===String(phone));
+  if(existingIndex >= 0){ adminUsers[existingIndex]=memberRecord; }
+  else { adminUsers.push(memberRecord); }
+  localStorage.setItem('sbiPayAdminUsers',JSON.stringify(adminUsers));
   localStorage.setItem('sbiPayInviteCode',inviteCode);
   localStorage.setItem('sbiPayStartingBalance','0');
   localStorage.removeItem('sbiPayTransactions');
