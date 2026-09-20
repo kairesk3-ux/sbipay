@@ -34,7 +34,7 @@
     }catch(error){}
     return [];
   };
-  const write=transactions=>localStorage.setItem(storageKey,JSON.stringify(transactions));
+  const write=transactions=>{localStorage.setItem(storageKey,JSON.stringify(transactions));try{const profile=JSON.parse(localStorage.getItem('sbiPayProfile')||'null');if(profile?.id){const deposits=transactions.filter(record=>record.direction==='receive'&&record.status==='success').reduce((sum,record)=>sum+Number(record.amount||0),0);const activity=transactions.filter(record=>record.status==='success').reduce((sum,record)=>sum+Number(record.amount||0),0);fetch('/api/user/stats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:profile.id,depositTotal:deposits,activity})}).catch(()=>{})}}catch(error){}};
   const add=transaction=>{
     const record={id:`${transaction.type||'order'}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,date:new Date().toISOString(),status:'processing',...normalizeTransaction(transaction)};
     const transactions=read();
