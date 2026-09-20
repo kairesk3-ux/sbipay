@@ -47,7 +47,13 @@ const getDatabase = async () => {
   if (!mongoUri) throw new Error('MONGODB_URI is not configured');
   if (!mongoConnection) {
     mongoClient = new MongoClient(mongoUri, {serverSelectionTimeoutMS: 5000});
-    mongoConnection = mongoClient.connect().then(() => mongoClient.db(mongoDatabase));
+    mongoConnection = mongoClient.connect()
+      .then(() => mongoClient.db(mongoDatabase))
+      .catch(error => {
+        mongoConnection = null;
+        mongoClient = null;
+        throw error;
+      });
   }
   return mongoConnection;
 };

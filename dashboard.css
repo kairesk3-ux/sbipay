@@ -1,4 +1,5 @@
 @media(max-width:600px){
+	body{zoom:.86;width:116.27907%;min-height:116.27907vh}
 	html{font-size:14px!important}
 	body{overflow-x:hidden!important}
 	.app-shell,.wallet-shell,.asset-shell,.team-shell,.statistics-shell,.claim-shell,.order-details-shell,.usdt-shell,.orders-shell,.message-shell,.score-shell{width:100%!important;max-width:576px!important;margin-left:auto!important;margin-right:auto!important}
